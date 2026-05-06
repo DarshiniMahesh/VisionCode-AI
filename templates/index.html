@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS AI — Intelligent Creation Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050508;
+    --surface: #0c0c14;
+    --border: #1a1a2e;
+    --code-accent: #00d4ff;
+    --caption-accent: #ff6b35;
+    --muted: #4a4a6a;
+    --text: #e8e8f0;
+    --text-dim: #8888aa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    z-index: 0;
+    animation: gridMove 20s linear infinite;
+  }
+
+  @keyframes gridMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 60px 60px; }
+  }
+
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    z-index: 0;
+    animation: orbFloat 12s ease-in-out infinite;
+  }
+  .orb-1 { width: 500px; height: 500px; background: rgba(0,212,255,0.06); top: -100px; left: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(255,107,53,0.06); bottom: -100px; right: -100px; animation-delay: -6s; }
+  @keyframes orbFloat {
+    0%,100% { transform: translate(0,0); }
+    50% { transform: translate(30px, 20px); }
+  }
+
+  .container { position: relative; z-index: 1; }
+
+  header {
+    padding: 32px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--code-accent); }
+
+  .hero {
+    padding: 80px 48px 60px;
+    text-align: center;
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(42px, 6vw, 80px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    margin-bottom: 24px;
+  }
+  .hero h1 em { font-style: normal; color: var(--code-accent); }
+  .hero h1 .cap-word { color: var(--caption-accent); }
+
+  .hero-sub {
+    font-size: 16px;
+    color: var(--text-dim);
+    max-width: 520px;
+    margin: 0 auto 64px;
+    line-height: 1.7;
+    font-weight: 300;
+  }
+
+  .modules {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px 80px;
+  }
+
+  .module-card {
+    position: relative;
+    padding: 56px 48px;
+    background: var(--surface);
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.4s cubic-bezier(0.23,1,0.32,1);
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .module-card:first-child { border-radius: 24px 0 0 24px; }
+  .module-card:last-child { border-radius: 0 24px 24px 0; }
+
+  .module-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  .module-card.code::before { background: radial-gradient(circle at 30% 50%, rgba(0,212,255,0.08), transparent 70%); }
+  .module-card.caption::before { background: radial-gradient(circle at 70% 50%, rgba(255,107,53,0.08), transparent 70%); }
+  .module-card:hover::before { opacity: 1; }
+  .module-card:hover { transform: translateY(-4px); }
+
+  .module-card::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+  .module-card.code::after { right: 0; }
+  .module-card.caption::after { left: 0; }
+
+  .module-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    margin-bottom: 32px;
+  }
+
+  .module-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin-bottom: 32px;
+  }
+  .module-card.code .module-icon {
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.2);
+    box-shadow: 0 0 30px rgba(0,212,255,0.1);
+  }
+  .module-card.caption .module-icon {
+    background: rgba(255,107,53,0.1);
+    border: 1px solid rgba(255,107,53,0.2);
+    box-shadow: 0 0 30px rgba(255,107,53,0.1);
+  }
+
+  .module-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+  }
+  .module-card.code .module-title span { color: var(--code-accent); }
+  .module-card.caption .module-title span { color: var(--caption-accent); }
+
+  .module-desc {
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.7;
+    margin-bottom: 44px;
+    font-weight: 300;
+    max-width: 340px;
+  }
+
+  .module-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    transition: all 0.3s;
+    border: none;
+    cursor: pointer;
+  }
+  .module-card.code .module-cta {
+    background: rgba(0,212,255,0.12);
+    color: var(--code-accent);
+    border: 1px solid rgba(0,212,255,0.25);
+  }
+  .module-card.caption .module-cta {
+    background: rgba(255,107,53,0.12);
+    color: var(--caption-accent);
+    border: 1px solid rgba(255,107,53,0.25);
+  }
+  .module-card.code:hover .module-cta { background: rgba(0,212,255,0.2); box-shadow: 0 0 20px rgba(0,212,255,0.2); }
+  .module-card.caption:hover .module-cta { background: rgba(255,107,53,0.2); box-shadow: 0 0 20px rgba(255,107,53,0.2); }
+
+  .cta-arrow { transition: transform 0.3s; }
+  .module-card:hover .cta-arrow { transform: translateX(4px); }
+
+  .bg-code {
+    position: absolute;
+    bottom: -10px;
+    right: -10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: rgba(0,212,255,0.05);
+    line-height: 1.8;
+    white-space: pre;
+    pointer-events: none;
+    text-align: right;
+  }
+
+  .bg-image-grid {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 4px;
+    opacity: 0.06;
+    pointer-events: none;
+  }
+  .bg-img-cell { width: 24px; height: 24px; background: var(--caption-accent); border-radius: 3px; }
+
+  footer {
+    text-align: center;
+    padding: 32px 48px;
+    border-top: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hero { animation: fadeUp 0.8s cubic-bezier(0.23,1,0.32,1) both; }
+  .module-card.code { animation: fadeUp 0.8s 0.2s cubic-bezier(0.23,1,0.32,1) both; }
+  .module-card.caption { animation: fadeUp 0.8s 0.3s cubic-bezier(0.23,1,0.32,1) both; }
+
+  @media (max-width: 768px) {
+    .modules { grid-template-columns: 1fr; padding: 0 24px 60px; }
+    .module-card:first-child { border-radius: 24px 24px 0 0; }
+    .module-card:last-child { border-radius: 0 0 24px 24px; }
+    .module-card::after { display: none; }
+    header { padding: 20px 24px; }
+    .hero { padding: 48px 24px 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<div class="container">
+  <header>
+    <div class="logo">NEX<span>US</span> AI</div>
+  </header>
+
+  <section class="hero">
+    <h1>
+      Code.<br>
+      <em>Reason.</em>
+      <span class="cap-word"> See.</span>
+    </h1>
+    <p class="hero-sub">
+      Two AI engines. One platform. Write code in any language autonomously,
+      or generate intelligent captions for any image — instantly.
+    </p>
+  </section>
+
+  <div class="modules">
+    <a href="/code" class="module-card code">
+      <div class="module-num">MODULE 01</div>
+      <div class="module-icon">⚡</div>
+      <div class="module-title">Autonomous<br><span>Code Agent</span></div>
+      <p class="module-desc">
+        Describe any task in plain English. The agent writes, runs, debugs, and delivers
+        working code across 10+ languages — automatically.
+      </p>
+      <button class="module-cta">
+        Get Started <span class="cta-arrow">→</span>
+      </button>
+      <div class="bg-code">def solve(task):\n  code = llm.generate(task)\n  result = exec(code)\n  return result</div>
+    </a>
+
+    <a href="/caption" class="module-card caption">
+      <div class="module-num">MODULE 02</div>
+      <div class="module-icon">🖼️</div>
+      <div class="module-title">Image Caption<br><span>Generator</span></div>
+      <p class="module-desc">
+        Upload any image and get an accurate, natural language caption generated
+        automatically — in seconds.
+      </p>
+      <button class="module-cta">
+        Get Started <span class="cta-arrow">→</span>
+      </button>
+      <div class="bg-image-grid">
+        <div class="bg-img-cell"></div><div class="bg-img-cell"></div><div class="bg-img-cell"></div>
+        <div class="bg-img-cell"></div><div class="bg-img-cell"></div><div class="bg-img-cell"></div>
+        <div class="bg-img-cell"></div><div class="bg-img-cell"></div><div class="bg-img-cell"></div>
+      </div>
+    </a>
+  </div>
+
+  <footer>NEXUS AI · 2026</footer>
+</div>
+</body>
+</html>

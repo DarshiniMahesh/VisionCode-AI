@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Caption Generator — NEXUS AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#050508;--surface:#0c0c14;--surface2:#111120;--border:#1a1a2e;
+    --accent:#ff6b35;--accent-dim:rgba(255,107,53,0.15);--accent-glow:rgba(255,107,53,0.3);
+    --success:#00ff88;--error:#ff4466;--text:#e8e8f0;--text-dim:#8888aa;--muted:#3a3a5a;
+    --blue:#00d4ff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,107,53,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,107,53,0.025) 1px,transparent 1px);background-size:60px 60px;z-index:0;animation:gridMove 25s linear infinite;}
+  @keyframes gridMove{0%{background-position:0 0}100%{background-position:60px 60px}}
+  .orb{position:fixed;border-radius:50%;filter:blur(120px);z-index:0;}
+  .orb-1{width:400px;height:400px;background:rgba(255,107,53,0.05);top:-100px;right:-100px;}
+  .orb-2{width:300px;height:300px;background:rgba(0,212,255,0.04);bottom:-100px;left:-100px;}
+  .container{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh;}
+
+  header{padding:20px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;background:rgba(5,5,8,0.8);}
+  .back-btn{display:flex;align-items:center;gap:8px;color:var(--text-dim);font-size:13px;text-decoration:none;transition:color 0.2s;font-family:'DM Mono',monospace;}
+  .back-btn:hover{color:var(--accent);}
+  .header-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;}
+  .header-title span{color:var(--accent);}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;display:inline-block;margin-right:8px;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,0.4)}50%{box-shadow:0 0 0 6px rgba(0,255,136,0)}}
+  .status-text{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);}
+
+  .workspace{display:grid;grid-template-columns:400px 1fr;flex:1;height:calc(100vh - 61px);}
+
+  .left-panel{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+  .panel-section{padding:24px;border-bottom:1px solid var(--border);}
+  .section-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+  .section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  .drop-zone{
+    border:2px dashed var(--border);border-radius:16px;padding:48px 24px;
+    text-align:center;cursor:pointer;transition:all 0.3s;position:relative;
+    background:var(--surface2);overflow:hidden;
+  }
+  .drop-zone:hover,.drop-zone.drag-over{border-color:rgba(255,107,53,0.5);background:rgba(255,107,53,0.04);box-shadow:0 0 30px rgba(255,107,53,0.08);}
+  .drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .drop-icon{font-size:40px;margin-bottom:16px;display:block;}
+  .drop-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:8px;}
+  .drop-sub{font-size:12px;color:var(--text-dim);font-family:'DM Mono',monospace;}
+  .drop-formats{margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+  .fmt-tag{font-family:'DM Mono',monospace;font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid rgba(255,107,53,0.2);color:var(--accent);}
+
+  .img-preview-wrap{position:relative;}
+  .img-preview{width:100%;max-height:220px;object-fit:contain;border-radius:10px;display:block;}
+  .img-change-btn{position:absolute;top:8px;right:8px;padding:5px 12px;background:rgba(0,0,0,0.7);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all 0.2s;}
+  .img-change-btn:hover{color:var(--text);}
+
+  .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .mode-btn{padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;transition:all 0.2s;text-align:center;}
+  .mode-btn .mode-icon{font-size:20px;display:block;margin-bottom:6px;}
+  .mode-btn .mode-name{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;}
+  .mode-btn .mode-desc{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);margin-top:3px;}
+  .mode-btn.active{border-color:rgba(255,107,53,0.4);background:rgba(255,107,53,0.07);box-shadow:0 0 15px rgba(255,107,53,0.08);}
+  .mode-btn.active .mode-name{color:var(--accent);}
+
+  .gen-btn{
+    width:100%;padding:16px;background:var(--accent);color:#fff;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:15px;
+    border:none;border-radius:12px;cursor:pointer;transition:all 0.3s;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+  }
+  .gen-btn:hover{box-shadow:0 0 30px rgba(255,107,53,0.4);transform:translateY(-1px);}
+  .gen-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none;box-shadow:none;}
+
+  .right-panel{display:flex;flex-direction:column;overflow:hidden;}
+  .output-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .output-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;}
+
+  .results-area{flex:1;overflow-y:auto;padding:32px;}
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:16px;padding:48px;}
+  .empty-icon{font-size:56px;opacity:0.25;}
+  .empty-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--text-dim);}
+  .empty-sub{font-size:13px;color:var(--muted);line-height:1.6;max-width:320px;}
+
+  .result-image-wrap{border-radius:16px;overflow:hidden;border:1px solid var(--border);margin-bottom:24px;}
+  .result-image{width:100%;max-height:380px;object-fit:contain;display:block;background:var(--surface2);}
+  .img-meta{padding:12px 16px;background:var(--surface2);border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);}
+
+  .caption-cards{display:flex;flex-direction:column;gap:16px;margin-bottom:32px;}
+  .caption-card{
+    padding:20px 24px;border-radius:14px;border:1px solid var(--border);
+    background:var(--surface);position:relative;transition:all 0.2s;
+  }
+  .caption-card:hover{border-color:rgba(255,107,53,0.25);background:rgba(255,107,53,0.02);}
+  .caption-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .caption-method{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;padding:4px 10px;border-radius:20px;border:1px solid rgba(255,107,53,0.3);color:var(--accent);background:rgba(255,107,53,0.06);}
+  .caption-score{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);}
+  .caption-text{font-size:18px;line-height:1.6;font-weight:400;color:var(--text);}
+  .copy-cap-btn{position:absolute;top:16px;right:16px;padding:5px 12px;border-radius:6px;font-family:'DM Mono',monospace;font-size:10px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;transition:all 0.2s;}
+  .copy-cap-btn:hover{border-color:rgba(255,107,53,0.3);color:var(--accent);}
+
+  .confidence-bar{margin-top:12px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+  .confidence-fill{height:100%;border-radius:2px;background:var(--accent);transition:width 1s ease;}
+
+  .history-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .history-item{border-radius:8px;overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:all 0.2s;}
+  .history-item:hover{border-color:rgba(255,107,53,0.3);}
+  .history-item img{width:100%;height:70px;object-fit:cover;display:block;}
+  .history-item .hist-cap{padding:5px 7px;font-size:10px;color:var(--text-dim);font-family:'DM Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--surface2);}
+
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  .skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;height:20px;}
+
+  @media(max-width:900px){
+    .workspace{grid-template-columns:1fr;}
+    .left-panel{border-right:none;border-bottom:1px solid var(--border);height:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="container">
+  <header>
+    <a href="/" class="back-btn">← Back</a>
+    <div class="header-title">Image <span>Caption Generator</span></div>
+    <div class="status-text"><span class="status-dot"></span>Ready</div>
+  </header>
+
+  <div class="workspace">
+    <div class="left-panel">
+      <div class="panel-section">
+        <div class="section-label">Upload Image</div>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="imageInput" accept="image/*" onchange="handleImageSelect(this)">
+          <div id="dropContent">
+            <span class="drop-icon">🖼️</span>
+            <div class="drop-title">Drag & drop your image</div>
+            <div class="drop-sub">or click to browse</div>
+            <div class="drop-formats">
+              <span class="fmt-tag">JPG</span>
+              <span class="fmt-tag">PNG</span>
+              <span class="fmt-tag">WEBP</span>
+              <span class="fmt-tag">BMP</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">Caption Style</div>
+        <div class="mode-grid">
+          <div class="mode-btn active" data-mode="natural" onclick="selectMode(this)">
+            <span class="mode-icon">💬</span>
+            <div class="mode-name">Natural</div>
+            <div class="mode-desc">Descriptive sentence</div>
+          </div>
+          <div class="mode-btn" data-mode="detailed" onclick="selectMode(this)">
+            <span class="mode-icon">🔍</span>
+            <div class="mode-name">Detailed</div>
+            <div class="mode-desc">2-3 rich sentences</div>
+          </div>
+          <div class="mode-btn" data-mode="concise" onclick="selectMode(this)">
+            <span class="mode-icon">⚡</span>
+            <div class="mode-name">Concise</div>
+            <div class="mode-desc">5-8 word tag</div>
+          </div>
+          <div class="mode-btn" data-mode="poetic" onclick="selectMode(this)">
+            <span class="mode-icon">✨</span>
+            <div class="mode-name">Poetic</div>
+            <div class="mode-desc">Creative description</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <button class="gen-btn" id="genBtn" onclick="generateCaption()">
+          <span id="genBtnIcon">🖼️</span>
+          <span id="genBtnText">Generate Caption</span>
+        </button>
+      </div>
+
+      <div class="panel-section" id="historySection" style="display:none;">
+        <div class="section-label">Recent</div>
+        <div class="history-grid" id="historyGrid"></div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="output-header">
+        <div class="output-title">Caption Result</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);">AI-Powered Caption Engine</div>
+      </div>
+      <div class="results-area" id="resultsArea">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">🖼️</div>
+          <div class="empty-title">No image uploaded yet</div>
+          <div class="empty-sub">Upload an image and click Generate Caption to get an intelligent description instantly.</div>
+        </div>
+        <div id="resultsContent" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedFile = null;
+let currentMode = 'natural';
+let captionHistory = [];
+let isGenerating = false;
+
+const dropZone = document.getElementById('dropZone');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImageFile(file);
+});
+
+function handleImageSelect(input) {
+  if (input.files[0]) loadImageFile(input.files[0]);
+}
+
+function loadImageFile(file) {
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('dropContent').innerHTML = `
+      <div class="img-preview-wrap">
+        <img src="${e.target.result}" class="img-preview" id="uploadedImg">
+        <button class="img-change-btn" onclick="resetImage(event)">Change</button>
+      </div>
+    `;
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetImage(e) {
+  e.stopPropagation();
+  selectedFile = null;
+  document.getElementById('dropContent').innerHTML = `
+    <span class="drop-icon">🖼️</span>
+    <div class="drop-title">Drag & drop your image</div>
+    <div class="drop-sub">or click to browse</div>
+    <div class="drop-formats">
+      <span class="fmt-tag">JPG</span><span class="fmt-tag">PNG</span>
+      <span class="fmt-tag">WEBP</span><span class="fmt-tag">BMP</span>
+    </div>
+  `;
+}
+
+function selectMode(btn) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentMode = btn.dataset.mode;
+}
+
+function showSkeleton() {
+  return `<div class="skeleton" style="width:80%;margin-bottom:8px;"></div><div class="skeleton" style="width:55%;"></div>`;
+}
+
+async function generateCaption() {
+  if (!selectedFile) { alert('Please upload an image first!'); return; }
+  if (isGenerating) return;
+  isGenerating = true;
+
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  document.getElementById('genBtnIcon').innerHTML = '<div class="spinner"></div>';
+  document.getElementById('genBtnText').textContent = 'Generating...';
+
+  document.getElementById('emptyState').style.display = 'none';
+  const resultsContent = document.getElementById('resultsContent');
+  resultsContent.style.display = 'block';
+
+  const imgUrl = URL.createObjectURL(selectedFile);
+  const sizeKB = (selectedFile.size / 1024).toFixed(0);
+
+  resultsContent.innerHTML = `
+    <div class="result-image-wrap">
+      <img src="${imgUrl}" class="result-image">
+      <div class="img-meta">📁 ${selectedFile.name} &nbsp;·&nbsp; ${sizeKB} KB</div>
+    </div>
+    <div class="caption-cards">
+      <div class="caption-card" id="mainCaptionCard">
+        <div class="caption-card-header">
+          <span class="caption-method">Generated Caption</span>
+          <span class="caption-score" id="modeLabel">${currentMode}</span>
+        </div>
+        <div class="caption-text" id="captionTextEl">${showSkeleton()}</div>
+      </div>
+    </div>`;
+
+  try {
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+    formData.append('mode', currentMode);
+
+    const res = await fetch('/api/caption', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    const capText = data.llm || data.beam || data.greedy || 'Could not generate a caption. Please try again.';
+    document.getElementById('captionTextEl').textContent = capText;
+
+    const card = document.getElementById('mainCaptionCard');
+    const bar = document.createElement('div');
+    bar.className = 'confidence-bar';
+    const fill = document.createElement('div');
+    fill.className = 'confidence-fill';
+    fill.style.width = '0%';
+    bar.appendChild(fill);
+    card.appendChild(bar);
+    setTimeout(() => { fill.style.width = '92%'; }, 100);
+
+    card.insertAdjacentHTML('beforeend', `<button class="copy-cap-btn" onclick="copyCap(this)">Copy</button>`);
+
+    addToHistory(imgUrl, capText);
+
+  } catch(err) {
+    document.getElementById('captionTextEl').innerHTML =
+      `<span style="color:var(--error);font-size:13px;">⚠️ ${err.message}</span>`;
+  }
+
+  isGenerating = false;
+  btn.disabled = false;
+  document.getElementById('genBtnIcon').textContent = '🖼️';
+  document.getElementById('genBtnText').textContent = 'Generate Caption';
+}
+
+function addToHistory(imgUrl, caption) {
+  captionHistory.unshift({ imgUrl, caption });
+  if (captionHistory.length > 8) captionHistory.pop();
+  document.getElementById('historySection').style.display = 'block';
+  document.getElementById('historyGrid').innerHTML = captionHistory.map(h => `
+    <div class="history-item">
+      <img src="${h.imgUrl}" alt="">
+      <div class="hist-cap">${h.caption}</div>
+    </div>`).join('');
+}
+
+function copyCap(btn) {
+  let el = btn;
+  while (el && !el.classList.contains('caption-card')) el = el.parentElement;
+  const capText = el?.querySelector('.caption-text')?.textContent || '';
+  if (capText) {
+    navigator.clipboard.writeText(capText);
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  }
+}
+</script>
+</body>
+</html>

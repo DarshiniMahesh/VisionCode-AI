@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Agent — NEXUS AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050508;
+    --surface: #0c0c14;
+    --surface2: #111120;
+    --border: #1a1a2e;
+    --accent: #00d4ff;
+    --accent-dim: rgba(0,212,255,0.15);
+    --accent-glow: rgba(0,212,255,0.3);
+    --success: #00ff88;
+    --error: #ff4466;
+    --warn: #ffaa00;
+    --text: #e8e8f0;
+    --text-dim: #8888aa;
+    --muted: #3a3a5a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; overflow-x:hidden; }
+  body::before {
+    content:'';position:fixed;inset:0;
+    background-image:linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);
+    background-size:60px 60px;z-index:0;animation:gridMove 25s linear infinite;
+  }
+  @keyframes gridMove{0%{background-position:0 0}100%{background-position:60px 60px}}
+  .container{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh;}
+
+  /* Header */
+  header{padding:20px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;background:rgba(5,5,8,0.8);}
+  .back-btn{display:flex;align-items:center;gap:8px;color:var(--text-dim);font-size:13px;text-decoration:none;transition:color 0.2s;font-family:'DM Mono',monospace;}
+  .back-btn:hover{color:var(--accent);}
+  .header-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;letter-spacing:-0.3px;}
+  .header-title span{color:var(--accent);}
+  .status-indicator{display:flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,255,136,0.4)}50%{opacity:0.8;box-shadow:0 0 0 6px rgba(0,255,136,0)}}
+
+  /* Layout */
+  .workspace{display:grid;grid-template-columns:380px 1fr;flex:1;gap:0;}
+
+  /* Left Panel */
+  .left-panel{border-right:1px solid var(--border);display:flex;flex-direction:column;height:calc(100vh - 61px);overflow-y:auto;}
+  .panel-section{padding:24px;border-bottom:1px solid var(--border);}
+  .panel-section:last-child{border-bottom:none;flex:1;}
+
+  .section-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+  .section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  /* Task Input */
+  .task-area{
+    width:100%;background:var(--surface2);border:1px solid var(--border);
+    color:var(--text);font-family:'Inter',sans-serif;font-size:14px;font-weight:300;
+    padding:16px;border-radius:12px;resize:none;height:160px;line-height:1.6;
+    transition:border-color 0.2s,box-shadow 0.2s;
+    outline:none;
+  }
+  .task-area::placeholder{color:var(--muted);}
+  .task-area:focus{border-color:rgba(0,212,255,0.4);box-shadow:0 0 20px rgba(0,212,255,0.08);}
+
+  /* Language Selector */
+  .lang-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .lang-btn{
+    padding:10px 8px;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface2);color:var(--text-dim);font-family:'DM Mono',monospace;
+    font-size:11px;cursor:pointer;transition:all 0.2s;text-align:center;
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+  }
+  .lang-btn:hover{border-color:rgba(0,212,255,0.3);color:var(--accent);}
+  .lang-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08);box-shadow:0 0 12px rgba(0,212,255,0.1);}
+  .lang-icon{font-size:18px;}
+
+  /* Attempts */
+  .attempts-row{display:flex;align-items:center;gap:12px;margin-top:16px;}
+  .attempts-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);white-space:nowrap;}
+  .attempts-slider{flex:1;-webkit-appearance:none;height:3px;border-radius:2px;background:var(--border);outline:none;}
+  .attempts-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 8px var(--accent-glow);}
+  .attempts-val{font-family:'DM Mono',monospace;font-size:13px;color:var(--accent);min-width:16px;}
+
+  /* Run Button */
+  .run-btn{
+    width:100%;padding:16px;background:var(--accent);color:#000;
+    font-family:'Syne',sans-serif;font-weight:700;font-size:15px;
+    border:none;border-radius:12px;cursor:pointer;
+    transition:all 0.3s;letter-spacing:0.02em;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+  }
+  .run-btn:hover{box-shadow:0 0 30px rgba(0,212,255,0.4);transform:translateY(-1px);}
+  .run-btn:active{transform:translateY(0);}
+  .run-btn:disabled{background:var(--muted);color:var(--text-dim);cursor:not-allowed;box-shadow:none;transform:none;}
+
+  /* Examples */
+  .example-chips{display:flex;flex-direction:column;gap:8px;}
+  .example-chip{
+    padding:10px 14px;background:var(--surface2);border:1px solid var(--border);
+    border-radius:8px;font-size:12px;color:var(--text-dim);cursor:pointer;
+    transition:all 0.2s;line-height:1.4;
+  }
+  .example-chip:hover{border-color:rgba(0,212,255,0.3);color:var(--text);}
+
+  /* Right Panel - Output */
+  .right-panel{display:flex;flex-direction:column;height:calc(100vh - 61px);}
+
+  /* Output Header */
+  .output-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .output-tabs{display:flex;gap:4px;}
+  .tab-btn{padding:8px 16px;border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;border:none;cursor:pointer;transition:all 0.2s;letter-spacing:0.05em;}
+  .tab-btn.active{background:rgba(0,212,255,0.12);color:var(--accent);border:1px solid rgba(0,212,255,0.2);}
+  .tab-btn:not(.active){background:transparent;color:var(--text-dim);border:1px solid transparent;}
+  .tab-btn:not(.active):hover{color:var(--text);}
+
+  .output-actions{display:flex;gap:8px;}
+  .action-btn{padding:7px 14px;border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);cursor:pointer;transition:all 0.2s;}
+  .action-btn:hover{border-color:rgba(0,212,255,0.3);color:var(--accent);}
+
+  /* Output Content */
+  .output-content{flex:1;overflow-y:auto;padding:24px;}
+
+  /* Terminal */
+  .terminal{background:var(--surface2);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .terminal-bar{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+  .terminal-dot{width:10px;height:10px;border-radius:50%;}
+  .terminal-dot.red{background:#ff5f57;}
+  .terminal-dot.yellow{background:#ffbd2e;}
+  .terminal-dot.green{background:#28ca41;}
+  .terminal-title{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);margin-left:8px;}
+  .terminal-body{padding:20px;font-family:'DM Mono',monospace;font-size:13px;line-height:1.8;min-height:400px;white-space:pre-wrap;word-break:break-all;}
+
+  /* Log colors */
+  .log-info{color:var(--text-dim);}
+  .log-success{color:var(--success);}
+  .log-error{color:var(--error);}
+  .log-warn{color:var(--warn);}
+  .log-accent{color:var(--accent);}
+  .log-code{color:#c8b8f0;}
+  .log-output{color:var(--text);}
+  .log-sep{color:var(--muted);}
+
+  /* Code display */
+  .code-block{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .code-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .code-lang-tag{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:0.1em;}
+  .copy-code-btn{padding:5px 12px;border-radius:6px;font-family:'DM Mono',monospace;font-size:11px;border:1px solid rgba(0,212,255,0.2);background:rgba(0,212,255,0.05);color:var(--accent);cursor:pointer;transition:all 0.2s;}
+  .copy-code-btn:hover{background:rgba(0,212,255,0.12);}
+  pre{padding:20px;font-family:'DM Mono',monospace;font-size:12px;line-height:1.7;overflow-x:auto;color:var(--text);}
+
+  /* Success banner */
+  .success-banner{display:flex;align-items:center;gap:12px;padding:16px 20px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.15);border-radius:12px;margin-bottom:20px;}
+  .success-banner-icon{font-size:20px;}
+  .success-banner-text{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--success);}
+  .success-banner-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);margin-top:2px;}
+
+  /* Empty state */
+  .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:48px;gap:16px;}
+  .empty-icon{font-size:48px;opacity:0.3;}
+  .empty-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--text-dim);}
+  .empty-sub{font-size:13px;color:var(--muted);line-height:1.6;max-width:300px;}
+
+  /* Loading animation */
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  .cursor{display:inline-block;width:8px;height:14px;background:var(--accent);vertical-align:middle;animation:blink 1s infinite;margin-left:2px;}
+
+  /* Spinner */
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spinner{width:18px;height:18px;border:2px solid rgba(0,0,0,0.2);border-top-color:#000;border-radius:50%;animation:spin 0.6s linear infinite;}
+
+  /* HTML preview */
+  #html-preview-frame{width:100%;height:500px;border:none;border-radius:12px;border:1px solid var(--border);}
+
+  @media(max-width:900px){
+    .workspace{grid-template-columns:1fr;}
+    .left-panel{height:auto;border-right:none;border-bottom:1px solid var(--border);}
+    .right-panel{height:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <a href="/" class="back-btn">← Back</a>
+    <div class="header-title">Autonomous <span>Code Agent</span></div>
+    <div class="status-indicator"><span class="dot"></span> LLaMA 3.3 70B Connected</div>
+  </header>
+
+  <div class="workspace">
+    <!-- Left Panel -->
+    <div class="left-panel">
+      <!-- Task -->
+      <div class="panel-section">
+        <div class="section-label">Task Description</div>
+        <textarea class="task-area" id="taskInput" placeholder="Describe what you want to build...&#10;&#10;Examples:&#10;• Build a login form with validation&#10;• Write a binary search tree in Python&#10;• Create a SQL schema for a bookstore"></textarea>
+      </div>
+
+      <!-- Language -->
+      <div class="panel-section">
+        <div class="section-label">Language</div>
+        <div class="lang-grid">
+          <button class="lang-btn active" data-lang="auto" onclick="selectLang(this)"><span class="lang-icon">🤖</span>Auto</button>
+          <button class="lang-btn" data-lang="python" onclick="selectLang(this)"><span class="lang-icon">🐍</span>Python</button>
+          <button class="lang-btn" data-lang="html" onclick="selectLang(this)"><span class="lang-icon">🌐</span>HTML</button>
+          <button class="lang-btn" data-lang="javascript" onclick="selectLang(this)"><span class="lang-icon">📜</span>JS</button>
+          <button class="lang-btn" data-lang="java" onclick="selectLang(this)"><span class="lang-icon">☕</span>Java</button>
+          <button class="lang-btn" data-lang="cpp" onclick="selectLang(this)"><span class="lang-icon">⚡</span>C++</button>
+          <button class="lang-btn" data-lang="c" onclick="selectLang(this)"><span class="lang-icon">🔵</span>C</button>
+          <button class="lang-btn" data-lang="sql" onclick="selectLang(this)"><span class="lang-icon">🗄️</span>SQL</button>
+          <button class="lang-btn" data-lang="bash" onclick="selectLang(this)"><span class="lang-icon">💻</span>Bash</button>
+        </div>
+        <div class="attempts-row">
+          <span class="attempts-label">Fix attempts:</span>
+          <input type="range" class="attempts-slider" id="attemptsSlider" min="1" max="8" value="5" oninput="document.getElementById('attemptsVal').textContent=this.value">
+          <span class="attempts-val" id="attemptsVal">5</span>
+        </div>
+      </div>
+
+      <!-- Run -->
+      <div class="panel-section">
+        <button class="run-btn" id="runBtn" onclick="runAgent()">
+          <span id="runBtnIcon">⚡</span>
+          <span id="runBtnText">Run Agent</span>
+        </button>
+      </div>
+
+      <!-- Examples -->
+      <div class="panel-section">
+        <div class="section-label">Quick Examples</div>
+        <div class="example-chips">
+          <div class="example-chip" onclick="useExample(this)">Build a beautiful login form with HTML/CSS animations and validation</div>
+          <div class="example-chip" onclick="useExample(this)">Create a Python script that finds prime numbers up to 1000 with performance stats</div>
+          <div class="example-chip" onclick="useExample(this)">Write SQL to create a student database, insert records, and find top performers</div>
+          <div class="example-chip" onclick="useExample(this)">Build a JavaScript linked list with insert, delete, search, and display methods</div>
+          <div class="example-chip" onclick="useExample(this)">Create an HTML dashboard with animated charts for a student report card</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel">
+      <div class="output-header">
+        <div class="output-tabs">
+          <button class="tab-btn active" onclick="switchTab(this,'log')" data-tab="log">TERMINAL</button>
+          <button class="tab-btn" onclick="switchTab(this,'code')" data-tab="code">CODE</button>
+          <button class="tab-btn" onclick="switchTab(this,'preview')" data-tab="preview">PREVIEW</button>
+        </div>
+        <div class="output-actions">
+          <button class="action-btn" onclick="copyCode()">Copy Code</button>
+          <button class="action-btn" onclick="downloadCode()">Download</button>
+          <button class="action-btn" onclick="clearOutput()">Clear</button>
+        </div>
+      </div>
+
+      <div class="output-content" id="outputContent">
+        <!-- TAB: LOG -->
+        <div id="tab-log">
+          <div class="empty-state" id="emptyState">
+            <div class="empty-icon">⚡</div>
+            <div class="empty-title">Ready to generate</div>
+            <div class="empty-sub">Enter a task description, select a language, and hit Run Agent. The AI will write, execute, and debug code automatically.</div>
+          </div>
+          <div id="terminalContainer" style="display:none">
+            <div class="terminal">
+              <div class="terminal-bar">
+                <div class="terminal-dot red"></div>
+                <div class="terminal-dot yellow"></div>
+                <div class="terminal-dot green"></div>
+                <div class="terminal-title">nexus-agent — output</div>
+              </div>
+              <div class="terminal-body" id="terminalOutput"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: CODE -->
+        <div id="tab-code" style="display:none">
+          <div class="empty-state" id="codeEmpty">
+            <div class="empty-icon">📝</div>
+            <div class="empty-title">No code generated yet</div>
+            <div class="empty-sub">Run the agent to see generated code here.</div>
+          </div>
+          <div id="codeContainer" style="display:none">
+            <div class="code-block">
+              <div class="code-header">
+                <span class="code-lang-tag" id="codeLangTag">PYTHON</span>
+                <button class="copy-code-btn" onclick="copyCode()">Copy</button>
+              </div>
+              <pre id="codeDisplay"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: PREVIEW (HTML) -->
+        <div id="tab-preview" style="display:none">
+          <div class="empty-state" id="previewEmpty">
+            <div class="empty-icon">🌐</div>
+            <div class="empty-title">HTML Preview</div>
+            <div class="empty-sub">Generate HTML/CSS/JS code to see a live preview here.</div>
+          </div>
+          <div id="previewContainer" style="display:none">
+            <iframe id="html-preview-frame"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GROQ_API_KEY = "YOUR_GROQ_API_KEY_HERE"; // Will be set from config
+const MODEL = "llama-3.3-70b-versatile";
+
+let currentLang = "auto";
+let currentCode = "";
+let isRunning = false;
+
+const LANGUAGE_CONFIG = {
+  python: { ext: ".py", label: "Python" },
+  javascript: { ext: ".js", label: "JavaScript" },
+  java: { ext: ".java", label: "Java" },
+  cpp: { ext: ".cpp", label: "C++" },
+  c: { ext: ".c", label: "C" },
+  sql: { ext: ".sql", label: "SQL" },
+  bash: { ext: ".sh", label: "Bash" },
+  html: { ext: ".html", label: "HTML/CSS/JS" },
+  r: { ext: ".R", label: "R" },
+};
+
+function selectLang(btn) {
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentLang = btn.dataset.lang;
+}
+
+function useExample(el) {
+  document.getElementById('taskInput').value = el.textContent;
+}
+
+function switchTab(btn, tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  ['log','code','preview'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === tab ? 'block' : 'none';
+  });
+}
+
+function log(msg, type='info') {
+  const el = document.getElementById('terminalOutput');
+  const div = document.createElement('span');
+  div.className = 'log-' + type;
+  div.textContent = msg + '\n';
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearOutput() {
+  document.getElementById('terminalOutput').innerHTML = '';
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('terminalContainer').style.display = 'none';
+  document.getElementById('codeDisplay').textContent = '';
+  document.getElementById('codeEmpty').style.display = 'flex';
+  document.getElementById('codeContainer').style.display = 'none';
+  document.getElementById('previewEmpty').style.display = 'flex';
+  document.getElementById('previewContainer').style.display = 'none';
+  currentCode = '';
+}
+
+function showTerminal() {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('terminalContainer').style.display = 'block';
+}
+
+function detectLanguage(task) {
+  const t = task.toLowerCase();
+  if (/html|webpage|website|form|ui|frontend|landing|button|navbar/.test(t)) return 'html';
+  if (/java\b|spring|android/.test(t)) return 'java';
+  if (/javascript|nodejs|node\.js|express/.test(t)) return 'javascript';
+  if (/c\+\+|cpp/.test(t)) return 'cpp';
+  if (/\bsql\b|database query|select from|sqlite/.test(t)) return 'sql';
+  if (/bash|shell script/.test(t)) return 'bash';
+  return 'python';
+}
+
+async function callGroq(systemMsg, userMsg) {
+  const res = await fetch('/api/groq', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system: systemMsg, user: userMsg })
+  });
+  if (!res.ok) throw new Error('API error: ' + res.status);
+  const data = await res.json();
+  return data.content;
+}
+
+async function generateCode(task, language, prevCode=null, error=null) {
+  const langLabel = LANGUAGE_CONFIG[language]?.label || language;
+  const htmlNote = language === 'html' ?
+    'Write ONE complete .html file with CSS in <style> and JS in <script>. Make it visually polished with inline vanilla JS and CSS. No external CDNs.' : '';
+
+  let systemMsg, userMsg;
+  if (error && prevCode) {
+    systemMsg = `You are an expert ${langLabel} programmer. Fix the broken code given the error. ${htmlNote} Return ONLY raw ${langLabel} code. No markdown, no backticks, no explanations.`;
+    userMsg = `Fix this ${langLabel} code:\n\nCODE:\n${prevCode}\n\nERROR:\n${error}\n\nReturn only the corrected code.`;
+  } else {
+    systemMsg = `You are an expert ${langLabel} programmer. Write complete, working ${langLabel} code. ${htmlNote} RULES: Return ONLY raw ${langLabel} code — no markdown, no backticks, no explanations. Code must be complete, immediately runnable, with all imports and a main entry point. Output should be clear and well-labelled.`;
+    userMsg = `Write ${langLabel} code for this task:\n\n${task}\n\nReturn only the ${langLabel} code.`;
+  }
+
+  const raw = await callGroq(systemMsg, userMsg);
+  return raw.replace(/^```[\w]*\s*/gm, '').replace(/```\s*$/gm, '').trim();
+}
+
+function showCode(code, lang) {
+  currentCode = code;
+  document.getElementById('codeEmpty').style.display = 'none';
+  document.getElementById('codeContainer').style.display = 'block';
+  document.getElementById('codeDisplay').textContent = code;
+  document.getElementById('codeLangTag').textContent = (LANGUAGE_CONFIG[lang]?.label || lang).toUpperCase();
+}
+
+function showHtmlPreview(html) {
+  document.getElementById('previewEmpty').style.display = 'none';
+  document.getElementById('previewContainer').style.display = 'block';
+  const frame = document.getElementById('html-preview-frame');
+  frame.srcdoc = html;
+}
+
+async function runAgent() {
+  const task = document.getElementById('taskInput').value.trim();
+  if (!task) { alert('Please enter a task!'); return; }
+  if (isRunning) return;
+
+  isRunning = true;
+  const runBtn = document.getElementById('runBtn');
+  runBtn.disabled = true;
+  document.getElementById('runBtnIcon').innerHTML = '<div class="spinner"></div>';
+  document.getElementById('runBtnText').textContent = 'Running...';
+
+  showTerminal();
+  const maxAttempts = parseInt(document.getElementById('attemptsSlider').value);
+
+  let lang = currentLang;
+  if (lang === 'auto') lang = detectLanguage(task);
+  const langLabel = LANGUAGE_CONFIG[lang]?.label || lang;
+
+  log('═'.repeat(50), 'sep');
+  log('🤖 NEXUS AUTONOMOUS CODE AGENT v2.0', 'accent');
+  log('═'.repeat(50), 'sep');
+  log(`📋 Task    : ${task.substring(0,60)}...`, 'info');
+  log(`🌐 Language: ${langLabel}`, 'accent');
+  log(`🔁 Max Fix : ${maxAttempts} attempts`, 'info');
+  log('═'.repeat(50), 'sep');
+
+  let prevCode = null, lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    log(`\n🔄 Attempt ${attempt}/${maxAttempts}`, 'accent');
+    log('─'.repeat(40), 'sep');
+
+    try {
+      if (attempt === 1) {
+        log('🧠 Generating code with LLaMA 3.3 70B...', 'info');
+      } else {
+        log('🔧 Sending error to model for fix...', 'warn');
+      }
+
+      const code = await generateCode(task, lang, prevCode, lastError);
+      prevCode = code;
+
+      log(`\n📝 GENERATED ${langLabel.toUpperCase()} CODE:`, 'accent');
+      log('─'.repeat(40), 'sep');
+      log(code.substring(0, 300) + (code.length > 300 ? '\n... (truncated, see Code tab)' : ''), 'code');
+      log('─'.repeat(40), 'sep');
+
+      showCode(code, lang);
+
+      if (lang === 'html') {
+        log('\n🌐 Rendering HTML preview...', 'info');
+        showHtmlPreview(code);
+        log('\n✅ SUCCESS! HTML rendered in Preview tab.', 'success');
+        log(`🎉 COMPLETED in ${attempt} attempt(s)!`, 'success');
+        break;
+      }
+
+      // Execute via backend
+      log(`\n▶️  Executing ${langLabel} code...`, 'info');
+      const execRes = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language: lang })
+      });
+      const execData = await execRes.json();
+
+      if (execData.success) {
+        log('\n✅ EXECUTION SUCCESS!', 'success');
+        if (execData.output) {
+          log('\n📤 OUTPUT:', 'accent');
+          log('─'.repeat(40), 'sep');
+          log(execData.output, 'output');
+          log('─'.repeat(40), 'sep');
+        }
+        log(`\n🎉 COMPLETED in ${attempt} attempt(s)!`, 'success');
+        log(`🌐 Language: ${langLabel}`, 'info');
+        break;
+      } else {
+        lastError = execData.error;
+        log(`\n❌ Execution error on attempt ${attempt}:`, 'error');
+        log(execData.error, 'error');
+        if (attempt < maxAttempts) log('🔁 Sending to model for fix...', 'warn');
+        else { log('\n⚠️  All attempts exhausted.', 'error'); }
+      }
+    } catch(err) {
+      log(`\n❌ Error: ${err.message}`, 'error');
+      lastError = err.message;
+    }
+  }
+
+  isRunning = false;
+  runBtn.disabled = false;
+  document.getElementById('runBtnIcon').textContent = '⚡';
+  document.getElementById('runBtnText').textContent = 'Run Agent';
+}
+
+function copyCode() {
+  if (!currentCode) return;
+  navigator.clipboard.writeText(currentCode).then(() => {
+    const btn = document.querySelector('.copy-code-btn');
+    if(btn) { btn.textContent = 'Copied!'; setTimeout(()=>btn.textContent='Copy',2000); }
+  });
+}
+
+function downloadCode() {
+  if (!currentCode) return;
+  const btn = document.querySelectorAll('.action-btn')[1];
+  const lang = document.querySelectorAll('.lang-btn.active')[0]?.dataset.lang || 'python';
+  const ext = LANGUAGE_CONFIG[lang]?.ext || '.txt';
+  const blob = new Blob([currentCode], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'nexus_output' + ext;
+  a.click();
+}
+</script>
+</body>
+</html>
