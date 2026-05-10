@@ -14,14 +14,17 @@ import time
 from io import BytesIO
 from pathlib import Path
 
-# Load .env file
-from dotenv import load_dotenv
-load_dotenv()
+# Load .env for local dev only — Render/Vercel inject env vars directly
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 
-# ── Optional heavy imports (graceful degradation) ─────────────
+# ── Optional heavy imports ────────────────────────────────────
 try:
     import numpy as np
     from PIL import Image
@@ -37,7 +40,7 @@ try:
     from tensorflow.keras.applications import ResNet50
     from tensorflow.keras.models import Model
     from tensorflow.keras.applications.resnet50 import preprocess_input
-    from tensorflow.keras.preprocessing.image import img_to_array, load_img
+    from tensorflow.keras.preprocessing.image import img_to_array
     from tensorflow.keras.preprocessing.sequence import pad_sequences
     TF_AVAILABLE = True
 except ImportError:
@@ -48,12 +51,14 @@ except ImportError:
 app = Flask(__name__, template_folder="templates", static_folder="static")
 CORS(app)
 
-# ── Config — all from .env ────────────────────────────────────
-GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL    = "llama-3.3-70b-versatile"
-VISION_MODEL  = "meta-llama/llama-4-scout-17b-16e-instruct"
-FLASK_DEBUG   = os.getenv("FLASK_DEBUG", "False").lower() == "true"
-FLASK_PORT    = int(os.getenv("FLASK_PORT", "5000"))
+# ── Config ───────────────────────────────────────────────────
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_MODEL   = "llama-3.3-70b-versatile"
+VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+FLASK_DEBUG  = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+FLASK_PORT   = int(os.environ.get("FLASK_PORT", "5000"))
+
+print(f"🔑 GROQ_API_KEY: {'SET (' + GROQ_API_KEY[:8] + '...)' if GROQ_API_KEY else 'MISSING — add it in Render environment variables'}")
 
 MODEL_DIR      = Path("models")
 TOKENIZER_PATH = MODEL_DIR / "tokenizer.pkl"
@@ -70,7 +75,7 @@ _max_length    = 34
 _model_config  = {}
 
 # ─────────────────────────────────────────────────────────────
-# INITIALISATION
+# INITIALISATION — called at module level so gunicorn picks it up
 # ─────────────────────────────────────────────────────────────
 
 def init_groq():
@@ -79,7 +84,7 @@ def init_groq():
         print("⚠  Groq package not installed")
         return False
     if not GROQ_API_KEY:
-        print("⚠  GROQ_API_KEY not set in .env")
+        print("⚠  GROQ_API_KEY is empty — set it in Render dashboard → Environment")
         return False
     try:
         _groq_client = Groq(api_key=GROQ_API_KEY)
@@ -102,33 +107,38 @@ def init_caption_model():
         print("⚠  TF not available — skipping model load")
         return False
     if not MODEL_PATH.exists():
-        print(f"⚠  Model not found at {MODEL_PATH} — place your trained .keras file there")
+        print(f"⚠  Model not found at {MODEL_PATH}")
         return False
     try:
         print("📦 Loading caption model...")
         _caption_model = load_model(str(MODEL_PATH))
         print("✅ LSTM model loaded")
-
         rb = ResNet50(weights="imagenet", include_top=False, pooling="avg")
         _resnet_ext = Model(inputs=rb.inputs, outputs=rb.output)
         _resnet_ext.trainable = False
         print("✅ ResNet50 extractor ready")
-
         with open(TOKENIZER_PATH, "rb") as f:
             _tokenizer = pickle.load(f)
         _idx_to_word = {v: k for k, v in _tokenizer.word_index.items()}
-
         if CONFIG_PATH.exists():
             with open(CONFIG_PATH) as f:
                 _model_config = json.load(f)
             _max_length = _model_config.get("max_length", 34)
-
         print(f"✅ Tokenizer loaded — vocab {len(_tokenizer.word_index):,}, max_len {_max_length}")
         return True
     except Exception as e:
         print(f"⚠  Model load error: {e}")
         return False
 
+
+# ── THIS IS THE KEY FIX — runs at import time, not just __main__ ──
+init_groq()
+init_caption_model()
+
+
+# ─────────────────────────────────────────────────────────────
+# CAPTION HELPERS
+# ─────────────────────────────────────────────────────────────
 
 def _extract_features(img_array):
     arr = preprocess_input(img_array.astype(np.float32))
@@ -174,15 +184,13 @@ def _beam_caption(feat, beam_width=3, alpha=0.7):
 
 def _llm_caption(img_b64: str, style: str = "natural") -> str:
     if _groq_client is None:
-        return "Caption engine unavailable — check your API key in .env"
-
+        return "Caption engine unavailable — API key not configured on server"
     prompts = {
         "natural":  "Describe this image in one clear English sentence. Start with the main subject. No preamble.",
         "detailed": "Describe this image in 2 sentences covering subjects, actions and setting.",
         "concise":  "Describe this image in 5-8 words only.",
         "poetic":   "Write one poetic, evocative sentence describing this image.",
     }
-
     for attempt in range(3):
         try:
             resp = _groq_client.chat.completions.create(
@@ -247,7 +255,7 @@ LANGUAGE_CONFIG = {
 @app.route("/api/groq", methods=["POST"])
 def groq_api():
     if _groq_client is None:
-        return jsonify({"error": "API not initialised — check GROQ_API_KEY in .env"}), 500
+        return jsonify({"error": "API not initialised — check GROQ_API_KEY in Render environment variables"}), 500
     data = request.json
     try:
         resp = _groq_client.chat.completions.create(
@@ -360,8 +368,8 @@ def caption_api():
         beam_cap   = ""
 
         if TF_AVAILABLE and _caption_model is not None:
-            arr       = img_to_array(img.resize((224, 224)))
-            feat      = _extract_features(arr)
+            arr        = img_to_array(img.resize((224, 224)))
+            feat       = _extract_features(arr)
             greedy_cap = _greedy_caption(feat).capitalize() + "."
             beam_cap   = _beam_caption(feat).capitalize()   + "."
 
@@ -401,18 +409,13 @@ def status():
 
 
 # ─────────────────────────────────────────────────────────────
-# MAIN
+# MAIN — for local dev only, gunicorn ignores this block
 # ─────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("\n" + "═" * 50)
     print("  NEXUS AI — Server Starting")
     print("═" * 50)
-
-    init_groq()
-    init_caption_model()
-
     print("\n🌐 Server ready at http://localhost:5000")
     print("═" * 50 + "\n")
-
     app.run(debug=FLASK_DEBUG, host="0.0.0.0", port=FLASK_PORT, use_reloader=False)
