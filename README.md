@@ -7,7 +7,7 @@ A full-stack AI platform combining two powerful modules:
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start  
 
 ### Step 1 — Get your Groq API Key (FREE)
 1. Go to https://console.groq.com
